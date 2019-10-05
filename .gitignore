@@ -328,3 +328,7 @@ ASALocalRun/
 
 # MFractors (Xamarin productivity tool) working folder 
 .mfractor/
+
+# My own RAT Client and RBind Stub (not uploading because I don't want my viruses to get flagged)
+EasyRAT/
+RBindStub/

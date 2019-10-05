@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:tools="http://schemas.android.com/tools"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        tools:showIn="@layout/activity_main"
+        tools:context=".MainActivity">
+    <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+        <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:id="@+id/server_conn_text"
+                android:textAppearance="@style/TextAppearance.AppCompat.Medium" android:textColor="@color/colorAccent"
+                tools:text="@string/server_connection"/>
+        <android.support.v7.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:layout_marginTop="8dp" app:cardCornerRadius="16dp"
+                app:cardElevation="0dp">
+            <LinearLayout
+                    android:orientation="vertical"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent" android:padding="12dp">
+                <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent">
+
+                    <TextView
+                            android:text="@string/category_information"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textAppearance="@style/TextAppearance.AppCompat.Large" android:textStyle="bold"
+                            android:layout_gravity="center_vertical"/>
+                    <Button
+                            android:text="@string/update_data"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" android:id="@+id/get"
+                            android:layout_gravity="end"/>
+                </FrameLayout>
+                <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content" android:paddingTop="8dp" android:paddingBottom="8dp">
+
+                    <TextView
+                            android:text="@string/client_connection"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textAppearance="@style/TextAppearance.AppCompat.Button"/>
+                    <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" android:id="@+id/client_conn_text"
+                            android:layout_gravity="end" android:textAppearance="@style/TextAppearance.AppCompat.Button"
+                            tools:text="@string/general_none"/>
+                </FrameLayout>
+                <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent" android:paddingTop="8dp" android:paddingBottom="8dp">
+
+                    <TextView
+                            android:text="@string/system_name"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textAppearance="@style/TextAppearance.AppCompat.Button"/>
+                    <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" android:id="@+id/system_name_text"
+                            android:layout_gravity="end" android:textAppearance="@style/TextAppearance.AppCompat.Button"
+                            tools:text="@string/general_none"/>
+                </FrameLayout>
+                <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent" android:paddingTop="8dp" android:paddingBottom="8dp">
+
+                    <TextView
+                            android:text="@string/user_name"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textAppearance="@style/TextAppearance.AppCompat.Button"/>
+                    <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" android:id="@+id/user_name_text"
+                            android:layout_gravity="end" android:textAppearance="@style/TextAppearance.AppCompat.Button"
+                            tools:text="@string/general_none"/>
+                </FrameLayout>
+                <View
+                        android:id="@+id/divider"
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="?android:attr/listDivider"
+                        android:layout_marginTop="4dp" android:layout_marginBottom="8dp"/>
+                <CheckBox
+                        android:text="@string/screen_preview"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content" android:id="@+id/screen_preview_toggle"/>
+                <ImageView
+                        android:layout_width="match_parent"
+                        tools:srcCompat="@tools:sample/backgrounds/scenic"
+                        android:id="@+id/screen_preview" android:layout_height="wrap_content"
+                        android:adjustViewBounds="true" android:layout_marginTop="8dp"
+                        android:contentDescription="@string/screen_preview"/>
+            </LinearLayout>
+        </android.support.v7.widget.CardView>
+        <android.support.v7.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:layout_marginTop="24dp" app:cardCornerRadius="16dp"
+                app:cardElevation="0dp">
+            <LinearLayout
+                    android:orientation="vertical"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent" android:padding="12dp">
+                <TextView
+                        android:text="@string/category_actions"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textAppearance="@style/TextAppearance.AppCompat.Large" android:textStyle="bold"
+                        android:layout_marginBottom="8dp"/>
+                <Button
+                        android:text="@string/console_command"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content" android:id="@+id/console_command"/>
+                <Button
+                        android:text="@string/start_program"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content" android:id="@+id/start_program"/>
+                <Button
+                        android:text="@string/play_audio"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content" android:id="@+id/play_audio"/>
+            </LinearLayout>
+        </android.support.v7.widget.CardView>
+    </LinearLayout>
+</ScrollView>
