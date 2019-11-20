@@ -15,7 +15,6 @@ namespace EWLServer
             byte[] bSize = BitConverter.GetBytes(size);
             bSize.CopyTo(packet, 0);
             packet[4] = cmd;
-            Console.WriteLine(packet.Length);
             return packet;
         }
 
